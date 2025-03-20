@@ -1,43 +1,40 @@
-from flask import Blueprint, request, jsonify
-from scraping import fetch_news
-from sentiment import analyze_sentiment
-from comparative import comparative_analysis
-from tts import generate_tts
+from flask import Flask, request, jsonify
+from scraping import fetch_bing_news
+from sentiment import analyze_articles
+from comparative_analysis import comparative_analysis
+from tts import generate_hindi_tts
 
-api_blueprint = Blueprint('api', __name__)
+app = Flask(__name__)
 
-@api_blueprint.route('/news', methods=['GET'])
-def get_news():
-    company = request.args.get('company')
-    if not company:
-        return jsonify({"error": "Company name required"}), 400
+@app.route('/fetch_news', methods=['GET'])
+def fetch_news():
+    company_name = request.args.get('company_name')
+    limit = int(request.args.get('limit', 10))
+    articles = fetch_bing_news(company_name, limit)
+    return jsonify({"Articles": articles})
 
-    articles = fetch_news(company)
-    return jsonify({"company": company, "articles": articles})
+@app.route('/analyze_sentiment', methods=['POST'])
+def analyze_sentiment():
+    articles = request.json.get('articles', [])
+    analyzed_articles = analyze_articles(articles)
+    return jsonify({"Articles": analyzed_articles})
 
-@api_blueprint.route('/sentiment', methods=['POST'])
-def sentiment_analysis():
-    data = request.get_json()
-    if not data or "text" not in data:
-        return jsonify({"error": "Text data required"}), 400
+@app.route('/comparative_analysis', methods=['POST'])
+def perform_comparative_analysis():
+    articles = request.json.get('articles', [])
+    report = comparative_analysis(articles)
+    return jsonify({"Comparative Analysis": report})
 
-    sentiment = analyze_sentiment(data["text"])
-    return jsonify({"sentiment": sentiment})
+@app.route('/generate_tts', methods=['POST'])
+def generate_tts():
+    report = request.json.get('report', {})
+    articles = request.json.get('articles', [])
+    output_file = "analysis_report.mp3"
+    try:
+        generate_hindi_tts(report, articles, output_file=output_file)
+        return jsonify({"message": "TTS generated successfully", "file": output_file})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
-@api_blueprint.route('/comparative', methods=['POST'])
-def compare_news():
-    data = request.get_json()
-    if not data or "articles" not in data:
-        return jsonify({"error": "Articles data required"}), 400
-
-    result = comparative_analysis(data["articles"])
-    return jsonify(result)
-
-@api_blueprint.route('/tts', methods=['POST'])
-def text_to_speech():
-    data = request.get_json()
-    if not data or "text" not in data:
-        return jsonify({"error": "Text data required"}), 400
-
-    file_path = generate_tts(data["text"])
-    return jsonify({"audio_url": file_path})
+if __name__ == '__main__':
+    app.run(debug=True)
