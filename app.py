@@ -44,11 +44,21 @@ if st.button("Analyze"):
                 response = requests.post(f"{BASE_URL}/analyze_sentiment", json={"articles": articles})
                 analyzed_data = response.json()
                 articles = analyzed_data.get("Articles", [])
+                news_data["Sentiment Analysis"] = articles
 
                 # Perform comparative analysis
                 st.info("Performing comparative analysis...")
                 response = requests.post(f"{BASE_URL}/comparative_analysis", json={"articles": articles})
                 comparative_report = response.json().get("Comparative Analysis", {})
+                news_data["Comparative Analysis"] = comparative_report
+                
+                 # Perform final sentiment analysis
+                st.info("Performing final sentiment analysis...")
+                response = requests.post(f"{BASE_URL}/analyze_sentiment", json={"articles": articles})
+                final_sentiment_data = response.json()
+                final_articles = final_sentiment_data.get("Articles", [])
+                news_data["Final Sentiment Analysis"] = final_articles
+
 
                 # Display the comparative analysis report
                 st.subheader("Full Analysis Report")
