@@ -1,6 +1,7 @@
 from transformers import AutoTokenizer, AutoModelForSequenceClassification, pipeline
 from scraping import get_news_articles  # Import the scraping function
 from comparative_analysis import comparative_analysis  
+from comparative_analysis import extract_topics  # Import the extract_topics function
 
 # Load model and tokenizer once globally
 MODEL_NAME = "cardiffnlp/twitter-roberta-base-sentiment-latest"
@@ -56,8 +57,8 @@ def analyze_sentiment(text):
     except Exception as e:
         print(f"[ERROR] Sentiment analysis failed: {e}")
         return {
-            "sentiment": "Unknown",
-            "score": 0.0
+            "sentiment": "Neutral",
+            "score": 0.5
         }
 
 def analyze_articles(articles):
@@ -73,40 +74,75 @@ def analyze_articles(articles):
     for article in articles:
         try:
             # Use full text if available, otherwise use the summary
-            text_to_analyze = article.get("Text", article["Summary"])
+            text_to_analyze = article.get("summary", "").strip()
+            if not text_to_analyze:
+                print(f"[WARN] Skipping article with missing or empty summary: {article.get('title', 'Untitled')}")
+                article["Sentiment"] = "Unknown"
+                article["Sentiment Score"] = 0.0
+                continue
+
             sentiment_result = analyze_sentiment(text_to_analyze)
             article["Sentiment"] = sentiment_result["sentiment"]
             article["Sentiment Score"] = sentiment_result["score"]
         except Exception as e:
-            print(f"[WARN] Sentiment analysis failed for article: {article['Title']}. Error: {e}")
+            print(f"[WARN] Sentiment analysis failed for article: {article.get('title', 'Untitled')}. Error: {e}")
             article["Sentiment"] = "Unknown"
             article["Sentiment Score"] = 0.0
 
     return articles
 
-def get_news_articles_with_sentiment(company_name, limit=10):
+def get_news_articles_with_sentiment(company_name: str, limit: int = 10) -> dict:
     """
-    Fetches news articles, adds sentiment analysis, and performs comparative analysis.
-
-    Args:
-        company_name (str): The name of the company to fetch news for.
-        limit (int): The maximum number of articles to fetch.
-
-    Returns:
-        dict: News data with sentiment and comparative analysis.
+    Fetches news articles, performs sentiment analysis, and extracts topics.
     """
-    news_data = get_news_articles(company_name, limit)  # Fetch articles from scraping.py
-    articles = news_data["Articles"]
+    # Fetch articles from the scraping module
+    fetched_data = get_news_articles(company_name, limit=limit)
 
-    if articles:
-        articles = analyze_articles(articles)  # Add sentiment analysis
-        news_data["Articles"] = articles
+    # Extract the list of articles
+    articles = fetched_data.get("Articles", [])
+    if not articles:
+        print(f"[WARN] No articles found for {company_name}.")
+        return {"Articles": []}
 
-        
-        comparative_data = comparative_analysis(articles)
-        news_data["Comparative Sentiment Score"] = comparative_data
+    print(f"[INFO] Number of articles fetched: {len(articles)}")
 
-    return news_data
+    enriched_articles = []
+
+    for article in articles:
+        # Ensure article is a dictionary
+        if not isinstance(article, dict):
+            print(f"[WARN] Skipping invalid article: {article}")
+            continue
+
+        # Perform sentiment analysis
+        text_to_analyze = article.get("summary", "").strip()
+        if not text_to_analyze:
+            print(f"[WARN] Skipping article with missing or empty summary: {article.get('title', 'Untitled')}")
+            continue
+
+        sentiment_data = analyze_sentiment(text_to_analyze)
+        sentiment = sentiment_data["sentiment"]
+        sentiment_score = sentiment_data["score"]
+
+        # Extract topics
+        topics = extract_topics(text_to_analyze) if text_to_analyze else []
+
+        # Enrich the article with sentiment and topics
+        enriched_article = {
+            "Title": article.get("title", "Untitled"),
+            "Summary": text_to_analyze,
+            "Sentiment": sentiment,
+            "Sentiment Score": sentiment_score,
+            "Topics": topics,
+            "Publish Date": article.get("publish_date", "N/A"),
+            "URL": article.get("url", "N/A")
+        }
+        enriched_articles.append(enriched_article)
+
+        # Debugging: Print the enriched article
+        print("DEBUG: Enriched article:", enriched_article)
+
+    return {"Articles": enriched_articles}
 
 if __name__ == "__main__":
     company = "Tesla"
@@ -116,4 +152,4 @@ if __name__ == "__main__":
         print(f"No articles found for {company}.")
     else:
         import json
-        print(json.dumps(news_data, indent=4)) 
+        print(json.dumps(news_data, indent=4))

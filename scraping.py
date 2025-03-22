@@ -20,7 +20,7 @@ def fetch_bing_news(company_name, limit=10):
         limit (int): The maximum number of articles to fetch.
 
     Returns:
-        list: A list of dictionaries containing article details (Title, Summary, Source, URL).
+        list: A list of dictionaries containing article details (title, summary, source_and_time, url).
     """
     base_url = "https://www.bing.com/news/search?q="
     query = f"{company_name} news"
@@ -46,6 +46,11 @@ def fetch_bing_news(company_name, limit=10):
             # Extract link
             link = result.get("data-url", None)
 
+            # Skip articles with missing title or URL
+            if not title or not link:
+                print(f"[WARN] Skipping article due to missing title or URL.")
+                continue
+
             # Extract snippet (if available)
             snippet_tag = result.find("div", class_="snippet")
             snippet = snippet_tag.text.strip() if snippet_tag else "No summary available"
@@ -60,18 +65,21 @@ def fetch_bing_news(company_name, limit=10):
                 continue
 
             articles.append({
-                "Title": title,
-                "Summary": snippet,
-                "Source and Time": source_and_time,
-                "URL": link
+                "title": title,  # Standardized key
+                "summary": snippet,  # Standardized key
+                "source_and_time": source_and_time,  # Standardized key
+                "url": link  # Standardized key
             })
             seen_urls.add(normalized_link)
+
+            # Debug: Print the fetched article
+            print(f"[DEBUG] Article fetched: {articles[-1]}")
 
             # Stop if the required number of articles is reached
             if len(articles) >= limit:
                 break
         except Exception as e:
-            print(f"[WARN] Skipping a result due to error: {e}")
+            print(f"[WARN] Skipping a result due to error: {e}. Result: {result}")
             continue
 
     # Debug: Print the number of articles fetched

@@ -1,40 +1,41 @@
-from flask import Flask, request, jsonify
-from scraping import fetch_bing_news
-from sentiment import analyze_articles
+from fastapi import FastAPI
+from sentiment import get_news_articles_with_sentiment
 from comparative_analysis import comparative_analysis
 from tts import generate_hindi_tts
+import json
 
-app = Flask(__name__)
+app = FastAPI()
 
-@app.route('/fetch_news', methods=['GET'])
-def fetch_news():
-    company_name = request.args.get('company_name')
-    limit = int(request.args.get('limit', 10))
-    articles = fetch_bing_news(company_name, limit)
-    return jsonify({"Articles": articles})
+@app.get("/analyze")
+def analyze(company: str, limit: int = 10):
+    """
+    Fetches news articles, performs sentiment analysis, and runs comparative analysis.
+    """
+    news_data = get_news_articles_with_sentiment(company, limit)
+    
+    if not news_data.get("Articles"):
+        return {"error": "No articles found"}
+    
+    comparative_data = comparative_analysis(news_data["Articles"])
+    
+    structured_output = {
+        "Company": company,
+        "Articles": news_data["Articles"],
+        "Comparative Sentiment Score": comparative_data
+    }
+    
+    return structured_output
 
-@app.route('/analyze_sentiment', methods=['POST'])
-def analyze_sentiment():
-    articles = request.json.get('articles', [])
-    analyzed_articles = analyze_articles(articles)
-    return jsonify({"Articles": analyzed_articles})
-
-@app.route('/comparative_analysis', methods=['POST'])
-def perform_comparative_analysis():
-    articles = request.json.get('articles', [])
-    report = comparative_analysis(articles)
-    return jsonify({"Comparative Analysis": report})
-
-@app.route('/generate_tts', methods=['POST'])
-def generate_tts():
-    report = request.json.get('report', {})
-    articles = request.json.get('articles', [])
-    output_file = "analysis_report.mp3"
-    try:
-        generate_hindi_tts(report, articles, output_file=output_file)
-        return jsonify({"message": "TTS generated successfully", "file": output_file})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-if __name__ == '__main__':
-    app.run(debug=True)
+@app.get("/tts")
+def generate_tts(company: str):
+    """
+    Generates Hindi TTS from the sentiment analysis report.
+    """
+    news_data = get_news_articles_with_sentiment(company, limit=10)
+    if not news_data.get("Articles"):
+        return {"error": "No articles found"}
+    
+    comparative_data = comparative_analysis(news_data["Articles"])
+    audio_path = generate_hindi_tts(comparative_data, news_data["Articles"])
+    
+    return {"Audio": audio_path}

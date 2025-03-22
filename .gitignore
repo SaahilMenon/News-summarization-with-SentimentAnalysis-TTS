@@ -13,3 +13,16 @@ _pycache_/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Ignore system trash and unwanted files
+$Recycle.Bin/
+*.tmp
+.DS_Store
+
+Dockerfile
+
+space.yaml
+
+output.mp3
+
+[analysis_report.mp3](http://_vscodecontentref_/3)
