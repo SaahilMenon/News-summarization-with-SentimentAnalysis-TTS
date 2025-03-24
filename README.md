@@ -21,7 +21,7 @@ Follow these steps to run the project:
 
 1. **Clone the Repository**:
    ```bash
-   git clone https://github.com/karenrenac/News-Summarization-with-TTS-Application.git
+   git clone https://github.com/Saahilmenon/News-Summarization-with-TTS-Application.git
    cd News-Summarization-with-TTS-Application
    ```
 
